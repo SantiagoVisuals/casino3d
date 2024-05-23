@@ -9,10 +9,11 @@
 </head>
 <body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.145.0/three.js"></script>
+<script src="https://cdn.skypack.dev/three@0.129.0/examples/jsm/effects/StereoEffect.js"></script>
 <script type="module">
     import * as THREE from './three.module.js';
     import { OrbitControls } from './orbitcontrols.js';
-
+    import { StereoEffect } from 'https://cdn.skypack.dev/three@0.129.0/examples/jsm/effects/StereoEffect.js';
     const scene = new THREE.Scene();
     scene.background = new THREE.CubeTextureLoader()
         .setPath("texturas/")
@@ -25,8 +26,7 @@
             '6.jpg'
         ]);
     
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 0, 50);
+   
     
     const renderer = new THREE.WebGLRenderer();
     renderer.shadowMap.enabled = true;
@@ -34,6 +34,15 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+// Crea el efecto estéreo
+const stereoEffect = new StereoEffect(renderer);
+camera.position.set(0, 40, 0)
+camera.rotation.set(Math.PI/2,0,0);
+// Configura la cámara estéreo
+stereoEffect.eyeSeparation = 1;
+stereoEffect.setSize(window.innerWidth, window.innerHeight);
     const reflectionCube = new THREE.CubeTextureLoader()
         .setPath("texturas/")
         .load([
@@ -45,45 +54,8 @@
             '6.jpg'
         ]);
 
-    // StereoCamera setup
-    const stereo = new THREE.StereoCamera();
-    stereo.aspect = 0.5;
-    const size = renderer.getSize(new THREE.Vector2());
 
-    // Function to detect if the device is mobile
-    function isMobileDevice() {
-        return typeof window.orientation !== 'undefined' || navigator.userAgent.indexOf('IEMobile') !== -1;
-    }
 
-    // Variables for mouse movement
-    let targetX = 0;
-    let targetY = 0;
-
-    // Event listener for mouse movement
-    if (!isMobileDevice()) {
-        document.addEventListener('mousemove', onMouseMove);
-    }
-
-    function onMouseMove(event) {
-        targetX = (event.clientX / window.innerWidth) * 2 - 1;
-        targetY = -(event.clientY / window.innerHeight) * 2 + 1;
-    }
-
-    // Event listener for device orientation
-    if (isMobileDevice()) {
-        window.addEventListener('deviceorientation', onDeviceOrientation);
-    }
-
-    function onDeviceOrientation(event) {
-        const alpha = event.alpha ? THREE.Math.degToRad(event.alpha) : 0; // Z-axis rotation
-        const beta = event.beta ? THREE.Math.degToRad(event.beta) : 0; // X-axis rotation
-        const gamma = event.gamma ? THREE.Math.degToRad(event.gamma) : 0; // Y-axis rotation
-
-        const euler = new THREE.Euler(beta, alpha, -gamma, 'YXZ');
-        const quaternion = new THREE.Quaternion().setFromEuler(euler);
-
-        camera.quaternion.copy(quaternion);
-    }
 
 
 
@@ -473,7 +445,32 @@
     camera.position.z = 100;
     camera.position.y = 70;
     camera.position.x = -10;
-    camera.rotation.x = 0;
+    
+
+    // Verifica si el dispositivo soporta la API de dispositivos de orientación
+if (window.DeviceOrientationEvent) {
+    // Agrega un event listener para el evento de orientación del dispositivo
+    window.addEventListener('deviceorientation', handleOrientation, false);
+} else {
+    console.log("El dispositivo no soporta la API de dispositivos de orientación.");
+}
+
+// Función para manejar el evento de orientación del dispositivo
+function handleOrientation(event) {
+    // Obtén los datos de la orientación del dispositivo
+    const alpha = event.alpha; // Ángulo de rotación alrededor del eje z (en grados)
+    const beta = event.beta;   // Ángulo de rotación alrededor del eje x (en grados)
+    const gamma = event.gamma; // Ángulo de rotación alrededor del eje y (en grados)
+
+    // Usa los datos de orientación para controlar la cámara
+    // Por ejemplo, puedes rotar la cámara en función de estos ángulos
+    camera.rotation.x = THREE.MathUtils.degToRad(beta)+(Math.PI/2);
+    camera.rotation.y = THREE.MathUtils.degToRad(gamma);
+    camera.rotation.z = THREE.MathUtils.degToRad(alpha)+(Math.PI);
+
+    // Recuerda que debes tener una instancia de la cámara previamente definida en tu código
+    // y adaptar la lógica de control según tus necesidades específicas
+}
 
     // LUCES
     const light = new THREE.SpotLight(0xffffff, 1, 10000);
@@ -491,38 +488,20 @@
     var ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.45);
     scene.add(ambientLight);
 
-    const orbitControls = new OrbitControls(camera, renderer.domElement);
-    orbitControls.enableZoom = true;
-    orbitControls.minDistance = 1;
-    orbitControls.maxDistance = 200;
-    orbitControls.screenSpacePanning = true;
-    orbitControls.enableDamping = false;
-    orbitControls.dampingFactor = 1;
+    //const orbitControls = new OrbitControls(camera, renderer.domElement);
+  
 
     function render() {
         requestAnimationFrame(render);
-        orbitControls.update();
+        
+        
 
-        camera.position.x += (targetX * 5 - camera.position.x) * 0.05;
-        camera.position.y += (targetY * 5 - camera.position.y) * 0.05;
-        camera.lookAt(scene.position);
+      
+        
 
-        camera.updateMatrixWorld();
-        stereo.update(camera);
+       
 
-        renderer.setScissorTest(true);
-
-        // Render left eye
-        renderer.setScissor(0, 0, size.width / 2, size.height);
-        renderer.setViewport(0, 0, size.width / 2, size.height);
-        renderer.render(scene, stereo.cameraL);
-
-        // Render right eye
-        renderer.setScissor(size.width / 2, 0, size.width / 2, size.height);
-        renderer.setViewport(size.width / 2, 0, size.width / 2, size.height);
-        renderer.render(scene, stereo.cameraR);
-
-        renderer.setScissorTest(false);
+        
 
         // Animations and updates
         Num.rotation.z += 0.02;
@@ -544,6 +523,7 @@
         const z = L4.position.z + radius * Math.sin(angle);
         sphere.position.set(x, L4.position.y, z);
         angle += 0.02;
+        stereoEffect.render(scene, camera);
     }
 
     render();
